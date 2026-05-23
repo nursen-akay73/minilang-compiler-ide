@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniLang Studio — Two-Pass Compiler</title>
+  <style>
+    :root {
+      --bg-deep: #0f1117;
+      --bg-panel: #161b26;
+      --bg-editor: #12151c;
+      --bg-elevated: #1c2230;
+      --border: #2a3142;
+      --accent: #6c9eff;
+      --accent-soft: #3d5a99;
+      --text: #e6eaf2;
+      --muted: #8b95a8;
+      --success: #3dd68c;
+      --success-bg: #0d2818;
+      --error: #ff6b7a;
+      --error-bg: #2a1218;
+      --warning: #f0c14d;
+      --tac: #7ee8a8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-deep);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* —— Navbar —— */
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      height: 52px;
+      background: linear-gradient(180deg, #1a2030 0%, var(--bg-panel) 100%);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+    .brand-icon {
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; color: #fff; font-weight: 800;
+    }
+    .brand span { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    #analyze-btn {
+      background: linear-gradient(135deg, var(--accent) 0%, #5b7fd6 100%);
+      color: #fff;
+      border: none;
+      padding: 9px 22px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 12px rgba(108, 158, 255, 0.35);
+    }
+    #analyze-btn:hover { filter: brightness(1.08); }
+    #analyze-btn:disabled { opacity: 0.55; cursor: wait; }
+    .btn-info {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      border: none;
+      background: #3182ce;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 700;
+      font-family: Georgia, "Times New Roman", serif;
+      font-style: italic;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 0 rgba(49, 130, 206, 0.5);
+      transition: transform 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
+    }
+    .btn-info:hover {
+      background: #4299e1;
+      transform: scale(1.08);
+      box-shadow: 0 0 20px 4px rgba(49, 130, 206, 0.55);
+    }
+    .btn-info:active { transform: scale(0.96); }
+    .pipeline-badge {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg-editor);
+    }
+
+    /* —— Main layout —— */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 0;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      min-height: 0;
+      background: var(--bg-panel);
+    }
+    .panel:last-child { border-right: none; }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--bg-editor);
+      border-bottom: 1px solid var(--border);
+    }
+    .toolbar label, .toolbar button {
+      font-size: 12px;
+      padding: 7px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--bg-elevated);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .toolbar label:hover, .toolbar button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .editor-wrap {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      background: var(--bg-editor);
+    }
+    .line-gutter {
+      padding: 14px 8px 14px 12px;
+      font-family: Menlo, Monaco, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--muted);
+      text-align: right;
+      user-select: none;
+      border-right: 1px solid var(--border);
+      overflow: hidden;
+    }
+    #source-code {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-family: Menlo, Monaco, "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      padding: 14px;
+      resize: none;
+      outline: none;
+    }
+
+    /* —— Tabs —— */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      padding: 4px 6px 0;
+      gap: 2px;
+    }
+    .tab {
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--muted);
+      border: none;
+      background: transparent;
+      border-radius: 6px 6px 0 0;
+      border-bottom: 2px solid transparent;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active {
+      color: var(--accent);
+      background: var(--bg-panel);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+    .tab-content {
+      flex: 1;
+      overflow: auto;
+      display: none;
+      min-height: 0;
+      background: var(--bg-panel);
+    }
+    .tab-content.active { display: block; }
+    .tab-hint {
+      padding: 8px 14px;
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--bg-editor);
+      border-bottom: 1px solid var(--border);
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th {
+      position: sticky; top: 0; z-index: 1;
+      background: #252d3d;
+      color: var(--accent);
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:hover td { background: rgba(108, 158, 255, 0.06); }
+    .col-line { width: 48px; text-align: center; color: var(--muted); font-family: Menlo, monospace; }
+    .col-source {
+      font-family: Menlo, monospace;
+      color: #b8c4e0;
+      max-width: 220px;
+      word-break: break-all;
+    }
+    .token-list { list-style: none; margin: 0; padding: 0; }
+    .token-list li {
+      display: flex;
+      gap: 8px;
+      padding: 3px 0;
+      font-family: Menlo, monospace;
+      font-size: 11px;
+    }
+    .tok-type {
+      color: var(--accent);
+      min-width: 100px;
+      font-weight: 600;
+    }
+    .tok-val { color: var(--tac); }
+    .empty-line { color: var(--muted); font-style: italic; font-size: 11px; }
+    .section-label {
+      font-size: 10px;
+      color: var(--muted);
+      padding: 10px 14px 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    pre.code-view {
+      margin: 0; padding: 16px;
+      font-family: Menlo, Monaco, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre;
+      color: var(--text);
+    }
+    pre.tac-view { color: var(--tac); }
+
+    /* —— Error console —— */
+    .error-console {
+      flex-shrink: 0;
+      border-top: 2px solid var(--border);
+      min-height: 130px;
+      max-height: 200px;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .error-console.state-ok {
+      background: var(--success-bg);
+      border-top-color: rgba(61, 214, 140, 0.5);
+    }
+    .error-console.state-err {
+      background: var(--error-bg);
+      border-top-color: rgba(255, 107, 122, 0.5);
+    }
+    .error-console.state-idle {
+      background: var(--bg-elevated);
+    }
+    .error-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .state-ok .error-header { color: var(--success); }
+    .state-err .error-header { color: var(--error); }
+    .state-idle .error-header { color: var(--muted); }
+    #error-log {
+      flex: 1;
+      overflow: auto;
+      padding: 8px 16px 14px;
+      font-family: Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .state-ok #error-log { color: var(--success); font-weight: 600; }
+    .state-err #error-log { color: #ffb3bc; }
+    .state-idle #error-log { color: var(--muted); }
+    .err-line { display: block; padding: 2px 0; }
+
+    /* —— Modal (Architecture Blueprint) —— */
+    .modal-overlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease, background 0.3s ease;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      background: rgba(0, 0, 0, 0.78);
+    }
+    .modal {
+      background: #1a202c;
+      border: 1px solid #2d3748;
+      border-radius: 16px;
+      max-width: 920px;
+      width: 100%;
+      max-height: 88vh;
+      overflow: auto;
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.65);
+      transform: scale(0.92) translateY(16px);
+      opacity: 0;
+      transition: transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1), opacity 0.3s ease;
+    }
+    .modal-overlay.open .modal {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 22px 26px 16px;
+      border-bottom: 1px solid #2d3748;
+      position: sticky;
+      top: 0;
+      background: #1a202c;
+      z-index: 1;
+    }
+    .modal-head h2 {
+      font-size: 17px;
+      color: #e2e8f0;
+      font-weight: 700;
+      line-height: 1.35;
+      letter-spacing: -0.02em;
+    }
+    .modal-head .modal-sub {
+      display: block;
+      font-size: 12px;
+      color: #718096;
+      font-weight: 400;
+      margin-top: 4px;
+    }
+    .modal-close {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      background: #2d3748;
+      border: none;
+      color: #a0aec0;
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      transition: background 0.2s, color 0.2s;
+    }
+    .modal-close:hover { background: #4a5568; color: #fff; }
+    .modal-body { padding: 20px 26px 28px; }
+    .arch-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+    .arch-card {
+      border-radius: 12px;
+      padding: 18px 20px;
+      background: rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .arch-card:hover {
+      transform: translateY(-3px);
+    }
+    .arch-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    .arch-card p {
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #a0aec0;
+    }
+    .arch-card code {
+      font-family: Menlo, Monaco, monospace;
+      font-size: 11px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #e2e8f0;
+    }
+    .card-pass1 {
+      border: 2px solid #3182ce;
+      box-shadow: 0 4px 24px rgba(49, 130, 206, 0.15);
+    }
+    .card-pass1 h3 { color: #63b3ed; }
+    .card-pass1:hover { box-shadow: 0 8px 32px rgba(49, 130, 206, 0.28); }
+    .card-pass2 {
+      border: 2px solid #38a169;
+      box-shadow: 0 4px 24px rgba(56, 161, 105, 0.15);
+    }
+    .card-pass2 h3 { color: #68d391; }
+    .card-pass2:hover { box-shadow: 0 8px 32px rgba(56, 161, 105, 0.28); }
+    .card-tac {
+      border: 2px solid #dd6b20;
+      box-shadow: 0 4px 24px rgba(221, 107, 32, 0.15);
+    }
+    .card-tac h3 { color: #f6ad55; }
+    .card-tac:hover { box-shadow: 0 8px 32px rgba(221, 107, 32, 0.28); }
+    .modal-footer-note {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #2d3748;
+      font-size: 11px;
+      color: #718096;
+      text-align: center;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">M</div>
+      MiniLang Studio
+      <span>Two-Pass Compiler</span>
+    </div>
+    <div class="nav-actions">
+      <span class="pipeline-badge">Pass 1: Lexer → Pass 2: Parser → TAC</span>
+      <button type="button" class="btn-info" id="info-btn" title="Architecture Blueprint">i</button>
+      <button type="button" id="analyze-btn">▶ Analyze Code</button>
+    </div>
+  </nav>
+
+  <main>
+    <section class="panel">
+      <div class="panel-header">Source Editor</div>
+      <div class="toolbar">
+        <button type="button" id="load-sample-btn">📄 PDF Örnek Program</button>
+      </div>
+      <div class="editor-wrap">
+        <div class="line-gutter" id="line-gutter">1</div>
+        <textarea id="source-code" spellcheck="false"></textarea>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="tokens">Token Stream</button>
+        <button class="tab" data-tab="mapping">Line Mapping</button>
+        <button class="tab" data-tab="symbols">Symbol Table</button>
+        <button class="tab" data-tab="ast">AST (JSON)</button>
+        <button class="tab" data-tab="tac">TAC</button>
+      </div>
+
+      <div id="tab-tokens" class="tab-content active">
+        <div class="tab-hint">Pass 1 — Lexer token çıktısı (satır, tip, değer)</div>
+        <table>
+          <thead><tr><th>Line</th><th>Token Type</th><th>Value</th></tr></thead>
+          <tbody id="token-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-mapping" class="tab-content">
+        <div class="tab-hint">PDF §3.4 — Kaynak satırı → üretilen token eşlemesi (line-by-line)</div>
+        <table>
+          <thead><tr><th class="col-line">#</th><th>Source Line</th><th>Generated Tokens</th></tr></thead>
+          <tbody id="mapping-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-symbols" class="tab-content">
+        <div class="section-label">Pass 1 — Lexer (bellek iskeleti, tip ?)</div>
+        <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Memory</th><th>Scope</th></tr></thead>
+          <tbody id="symbol-pass1-body"></tbody>
+        </table>
+        <div class="section-label">Pass 2 — Parser (tam semantik tablo)</div>
+        <table>
+          <thead><tr><th>Name</th><th>Type</th><th>Memory</th><th>Scope</th></tr></thead>
+          <tbody id="symbol-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-ast" class="tab-content">
+        <div class="tab-hint">Pass 2 — Abstract Syntax Tree (JSON)</div>
+        <pre id="ast-view" class="code-view">Run Analyze Code to generate AST.</pre>
+      </div>
+
+      <div id="tab-tac" class="tab-content">
+        <div class="tab-hint">Intermediate Representation — Three-Address Code</div>
+        <pre id="tac-view" class="code-view tac-view">Run Analyze Code to generate TAC.</pre>
+      </div>
+    </section>
+  </main>
+
+  <div class="error-console state-idle" id="error-console">
+    <div class="error-header" id="error-header">● Error Log — Lexical · Syntax · Semantic</div>
+    <div id="error-log">Ready. Press Analyze Code to compile.</div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay" role="presentation">
+    <div class="modal" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+      <div class="modal-head">
+        <div>
+          <h2 id="modal-title">MiniLang Studio — Two-Pass Architecture Blueprint</h2>
+          <span class="modal-sub">Hand-Coded Compiler · Lexer → Parser → TAC · No Lex/Yacc/ANTLR</span>
+        </div>
+        <button type="button" class="modal-close" id="modal-close" aria-label="Kapat">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="arch-cards">
+          <article class="arch-card card-pass1">
+            <h3>🟦 PASS 1: Sözcük Analizi</h3>
+            <p>
+              Kaynak kodu karakter karakter tarar (<strong>Scanner</strong>). Boşlukları ve
+              yorum satırlarını (<code>//</code>, <code>/* */</code>) eler. Geçersiz karakterleri
+              (<code>@</code>, <code>$</code>) satır numarasıyla yakalar.
+              En önemlisi, değişkenleri algıladığı an <strong>RAM yönetimini simüle</strong> etmek için
+              <strong>Sembol Tablosuna</strong> kaydeder ve her birine ardışık
+              <strong>32-bit sahte bellek adresleri</strong> (<code>0x1000</code>, <code>0x1004</code>…) atar.
+            </p>
+          </article>
+          <article class="arch-card card-pass2">
+            <h3>🟩 PASS 2: Gramer &amp; Anlam Kontrolü</h3>
+            <p>
+              Token dizilimini <strong>BNF (Backus-Naur Form)</strong> kurallarına göre
+              <strong>Recursive Descent Parsing</strong> yöntemiyle denetler. Matematiksel ifadelerde
+              çarpma/bölme işlemlerini ağacın alt dallarına koyarak
+              <strong>Donanımsal İşlem Önceliğini (Operator Precedence)</strong> çözer.
+              <strong>Tanımlanmamış değişkenleri (Undeclared)</strong> ve
+              <strong>Tip Uyuşmazlıklarını (Type Mismatch)</strong> satır numarasıyla yakalar.
+            </p>
+          </article>
+          <article class="arch-card card-tac">
+            <h3>🟧 ARA KOD: Üç Adresli Kod (TAC)</h3>
+            <p>
+              Başarılı parse edilen <strong>AST</strong> ağacını, işlemci (CPU) içerisindeki
+              <strong>ALU</strong> ve geçici yazmaç (<strong>t0, t1, t2…</strong>) mantığına indirger.
+              Karmaşık denklemleri işlemcinin tek döngüde çalıştırabileceği, en fazla üç adres içeren
+              (<code>t0 = y * 2</code> gibi) saf <strong>donanım dostu makine öncesi</strong> koda dönüştürür.
+            </p>
+          </article>
+        </div>
+        <p class="modal-footer-note">
+          Analyze Code ile bu üç aşamayı canlı olarak Token Stream, Line Mapping, Symbol Table ve TAC sekmelerinde izleyebilirsiniz.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_SOURCE = `int x = 10;
+float y = 3.14;
+int z = x + 2 * 3;
+
+if (x > 5 && y != 0.0) {
+    print("Result is large");
+} else {
+    x = x + 1;
+}
+
+while (x < 20) {
+    x = x + 1;
+}`;
+
+    const editor = document.getElementById("source-code");
+    const gutter = document.getElementById("line-gutter");
+    const errorConsole = document.getElementById("error-console");
+    const errorLog = document.getElementById("error-log");
+
+    editor.value = DEFAULT_SOURCE;
+    updateGutter();
+
+    editor.addEventListener("input", updateGutter);
+    editor.addEventListener("scroll", () => {
+      gutter.scrollTop = editor.scrollTop;
+    });
+
+    function updateGutter() {
+      const n = editor.value.split("\n").length;
+      gutter.textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n");
+    }
+
+    document.getElementById("load-sample-btn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/sample");
+        const data = await res.json();
+        editor.value = data.source || "";
+        updateGutter();
+      } catch (err) {
+        alert("Örnek yüklenemedi: " + err.message);
+      }
+    });
+
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+      });
+    });
+
+    const modal = document.getElementById("modal-overlay");
+    function openModal() {
+      modal.classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+    function closeModal() {
+      modal.classList.remove("open");
+      document.body.style.overflow = "";
+    }
+    document.getElementById("info-btn").addEventListener("click", openModal);
+    document.getElementById("modal-close").addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("open")) closeModal();
+    });
+
+    function fillTable(tbodyId, rows, cols) {
+      const tbody = document.getElementById(tbodyId);
+      tbody.innerHTML = "";
+      if (!rows.length) {
+        tbody.innerHTML = "<tr><td colspan='" + cols + "' class='empty-line'>—</td></tr>";
+        return;
+      }
+      rows.forEach(row => {
+        const tr = document.createElement("tr");
+        row.forEach(cell => {
+          const td = document.createElement("td");
+          if (cell instanceof HTMLElement) td.appendChild(cell);
+          else td.textContent = cell;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function fillLineMapping(mapping) {
+      const tbody = document.getElementById("mapping-body");
+      tbody.innerHTML = "";
+      if (!mapping || !mapping.length) {
+        tbody.innerHTML = "<tr><td colspan='3' class='empty-line'>—</td></tr>";
+        return;
+      }
+      mapping.forEach(m => {
+        const tr = document.createElement("tr");
+        const lineTd = document.createElement("td");
+        lineTd.className = "col-line";
+        lineTd.textContent = m.line;
+
+        const srcTd = document.createElement("td");
+        srcTd.className = "col-source";
+        srcTd.textContent = m.source || "";
+
+        const tokTd = document.createElement("td");
+        if (m.tokens && m.tokens.length) {
+          const ul = document.createElement("ul");
+          ul.className = "token-list";
+          m.tokens.forEach(t => {
+            const li = document.createElement("li");
+            li.innerHTML = '<span class="tok-type">' + t.type + '</span><span class="tok-val">' + escapeHtml(t.value) + '</span>';
+            ul.appendChild(li);
+          });
+          tokTd.appendChild(ul);
+        } else {
+          const span = document.createElement("span");
+          span.className = "empty-line";
+          span.textContent = "(whitespace / comment — no tokens)";
+          tokTd.appendChild(span);
+        }
+        tr.appendChild(lineTd);
+        tr.appendChild(srcTd);
+        tr.appendChild(tokTd);
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+
+    function formatError(raw) {
+      const m = raw.match(/^Line (\d+): (Lexical|Syntax|Semantic) Error: (.+)$/);
+      if (m) return "Line " + m[1] + ": [" + m[2] + "] — " + m[3];
+      return raw;
+    }
+
+    function setErrorLog(errors) {
+      errorConsole.classList.remove("state-ok", "state-err", "state-idle");
+      if (!errors || !errors.length) {
+        errorConsole.classList.add("state-ok");
+        errorLog.innerHTML = "✔ No errors found. Generation successful!";
+        return;
+      }
+      errorConsole.classList.add("state-err");
+      errorLog.innerHTML = errors.map(e => {
+        const formatted = formatError(e);
+        return '<span class="err-line">✖ ' + escapeHtml(formatted) + '</span>';
+      }).join("");
+    }
+
+    async function analyze() {
+      const btn = document.getElementById("analyze-btn");
+      btn.disabled = true;
+      btn.textContent = "Analyzing…";
+      errorConsole.classList.remove("state-ok", "state-err");
+      errorConsole.classList.add("state-idle");
+      errorLog.textContent = "Compiling…";
+
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: editor.value })
+        });
+        const data = await res.json();
+
+        fillTable("token-body", data.tokens.map(t => [t.line, t.type, t.value]), 3);
+        fillLineMapping(data.line_mapping || []);
+        fillTable("symbol-pass1-body",
+          (data.symbols_pass1 || []).map(s => [s.name, s.type, s.memory_location, s.scope]), 4);
+        fillTable("symbol-body",
+          (data.symbols || []).map(s => [s.name, s.type, s.memory_location, s.scope]), 4);
+
+        document.getElementById("ast-view").textContent =
+          data.ast_json || "(No AST — fix errors in console)";
+        document.getElementById("tac-view").textContent =
+          data.tac && data.tac.length ? data.tac.join("\n") : "(No TAC generated)";
+
+        setErrorLog(data.errors || []);
+
+        if (!data.errors || !data.errors.length) {
+          document.querySelector('[data-tab="mapping"]').click();
+        }
+      } catch (err) {
+        errorConsole.classList.add("state-err");
+        errorLog.innerHTML = '<span class="err-line">✖ [System] — ' + escapeHtml(err.message) + '</span>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "▶ Analyze Code";
+      }
+    }
+
+    document.getElementById("analyze-btn").addEventListener("click", analyze);
+  </script>
+</body>
+</html>
