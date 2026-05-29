@@ -4,13 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MiniLang Studio — Two-Pass Compiler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-deep: #0f1117;
       --bg-panel: #161b26;
-      --bg-editor: #12151c;
+      --bg-editor: #0d1117;
       --bg-elevated: #1c2230;
-      --border: #2a3142;
+      --border: rgba(148, 163, 184, 0.12);
+      --border-subtle: rgba(148, 163, 184, 0.08);
       --accent: #6c9eff;
       --accent-soft: #3d5a99;
       --text: #e6eaf2;
@@ -20,7 +24,10 @@
       --error: #ff6b7a;
       --error-bg: #2a1218;
       --warning: #f0c14d;
-      --tac: #7ee8a8;
+      --tac: #4ade80;
+      --ast: #7dd3fc;
+      --terminal-bg: #0f172a;
+      --font-code: "Fira Code", "SF Mono", Monaco, "Courier New", monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -65,18 +72,24 @@
       background: linear-gradient(135deg, var(--accent) 0%, #5b7fd6 100%);
       color: #fff;
       border: none;
-      padding: 9px 22px;
+      padding: 10px 24px;
       font-size: 13px;
       font-weight: 600;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      box-shadow: 0 2px 12px rgba(108, 158, 255, 0.35);
+      box-shadow: 0 2px 14px rgba(108, 158, 255, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.25s ease, filter 0.2s ease;
     }
-    #analyze-btn:hover { filter: brightness(1.08); }
-    #analyze-btn:disabled { opacity: 0.55; cursor: wait; }
+    #analyze-btn:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(108, 158, 255, 0.55), 0 0 0 1px rgba(108, 158, 255, 0.2);
+    }
+    #analyze-btn:active { transform: translateY(0); }
+    #analyze-btn:disabled { opacity: 0.55; cursor: wait; transform: none; box-shadow: none; }
     .btn-info {
       width: 38px; height: 38px;
-      border-radius: 50%;
+      border-radius: 10px;
       border: none;
       background: #3182ce;
       color: #fff;
@@ -86,13 +99,13 @@
       font-style: italic;
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 0 0 rgba(49, 130, 206, 0.5);
+      box-shadow: 0 2px 10px rgba(49, 130, 206, 0.35);
       transition: transform 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
     }
     .btn-info:hover {
       background: #4299e1;
-      transform: scale(1.08);
-      box-shadow: 0 0 20px 4px rgba(49, 130, 206, 0.55);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(49, 130, 206, 0.55), 0 0 16px rgba(66, 153, 225, 0.35);
     }
     .btn-info:active { transform: scale(0.96); }
     .pipeline-badge {
@@ -141,47 +154,61 @@
       background: var(--bg-editor);
       border-bottom: 1px solid var(--border);
     }
-    .toolbar label, .toolbar button {
+    .toolbar button {
       font-size: 12px;
       padding: 7px 14px;
-      border-radius: 6px;
+      border-radius: 8px;
       cursor: pointer;
       background: var(--bg-elevated);
       color: var(--text);
       border: 1px solid var(--border);
+      transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     }
-    .toolbar label:hover, .toolbar button:hover {
+    .toolbar button:hover {
       border-color: var(--accent);
       color: var(--accent);
+      box-shadow: 0 0 12px rgba(108, 158, 255, 0.15);
     }
     .editor-wrap {
       flex: 1;
       display: flex;
       min-height: 0;
       background: var(--bg-editor);
+      margin: 10px 12px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: inset 0 2px 24px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
     }
     .line-gutter {
-      padding: 14px 8px 14px 12px;
-      font-family: Menlo, Monaco, monospace;
-      font-size: 12px;
-      line-height: 1.55;
-      color: var(--muted);
+      padding: 16px 10px 16px 14px;
+      font-family: var(--font-code);
+      font-size: 13px;
+      line-height: 1.75;
+      color: #4b5563;
       text-align: right;
       user-select: none;
-      border-right: 1px solid var(--border);
+      border-right: 1px solid var(--border-subtle);
       overflow: hidden;
+      background: rgba(0, 0, 0, 0.2);
+      min-width: 44px;
     }
     #source-code {
       flex: 1;
       border: none;
       background: transparent;
-      color: var(--text);
-      font-family: Menlo, Monaco, "Courier New", monospace;
-      font-size: 13px;
-      line-height: 1.55;
-      padding: 14px;
+      color: #e2e8f0;
+      font-family: var(--font-code);
+      font-size: 14px;
+      line-height: 1.75;
+      padding: 16px 18px;
       resize: none;
       outline: none;
+      tab-size: 4;
+      caret-color: var(--accent);
+    }
+    #source-code::selection {
+      background: rgba(108, 158, 255, 0.25);
     }
 
     /* —— Tabs —— */
@@ -200,10 +227,11 @@
       color: var(--muted);
       border: none;
       background: transparent;
-      border-radius: 6px 6px 0 0;
+      border-radius: 8px 8px 0 0;
       border-bottom: 2px solid transparent;
+      transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
     }
-    .tab:hover { color: var(--text); }
+    .tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.03); }
     .tab.active {
       color: var(--accent);
       background: var(--bg-panel);
@@ -216,8 +244,16 @@
       display: none;
       min-height: 0;
       background: var(--bg-panel);
+      opacity: 0;
     }
-    .tab-content.active { display: block; }
+    .tab-content.active {
+      display: block;
+      animation: tabFadeIn 0.28s ease forwards;
+    }
+    @keyframes tabFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .tab-hint {
       padding: 8px 14px;
       font-size: 11px;
@@ -226,37 +262,61 @@
       border-bottom: 1px solid var(--border);
     }
 
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .table-wrap { padding: 0 4px 8px; }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12px;
+    }
     th {
-      position: sticky; top: 0; z-index: 1;
-      background: #252d3d;
-      color: var(--accent);
+      position: sticky; top: 0; z-index: 2;
+      background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+      color: #93c5fd;
       text-align: left;
-      padding: 10px 12px;
+      padding: 11px 14px;
       font-weight: 600;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
     }
     td {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
       vertical-align: top;
+      transition: background 0.15s ease;
     }
-    tr:hover td { background: rgba(108, 158, 255, 0.06); }
-    .col-line { width: 48px; text-align: center; color: var(--muted); font-family: Menlo, monospace; }
+    tbody tr {
+      transition: background 0.15s ease;
+    }
+    tbody tr:hover td {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    tbody tr:hover td:first-child {
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+    .col-line {
+      width: 48px;
+      text-align: center;
+      color: var(--muted);
+      font-family: var(--font-code);
+      font-size: 11px;
+    }
     .col-source {
-      font-family: Menlo, monospace;
-      color: #b8c4e0;
-      max-width: 220px;
+      font-family: var(--font-code);
+      color: #cbd5e1;
+      max-width: 240px;
       word-break: break-all;
+      font-size: 12px;
     }
     .token-list { list-style: none; margin: 0; padding: 0; }
     .token-list li {
       display: flex;
       gap: 8px;
       padding: 3px 0;
-      font-family: Menlo, monospace;
+      font-family: var(--font-code);
       font-size: 11px;
     }
     .tok-type {
@@ -273,15 +333,54 @@
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
+    .terminal-panel {
+      margin: 12px 14px 16px;
+      background: var(--terminal-bg);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.4), 0 4px 24px rgba(0, 0, 0, 0.25);
+    }
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.35);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .terminal-header::before {
+      content: "";
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 16px 0 0 #f59e0b, 32px 0 0 #22c55e;
+      margin-right: 28px;
+    }
     pre.code-view {
-      margin: 0; padding: 16px;
-      font-family: Menlo, Monaco, monospace;
-      font-size: 12px;
-      line-height: 1.5;
+      margin: 0;
+      padding: 15px 18px;
+      font-family: var(--font-code);
+      font-size: 12.5px;
+      line-height: 1.65;
       white-space: pre;
+      overflow: auto;
+      max-height: calc(100vh - 320px);
       color: var(--text);
     }
-    pre.tac-view { color: var(--tac); }
+    #ast-view {
+      color: var(--ast);
+      text-shadow: 0 0 20px rgba(125, 211, 252, 0.15);
+    }
+    pre.tac-view, #tac-view {
+      color: var(--tac);
+      text-shadow: 0 0 20px rgba(74, 222, 128, 0.12);
+    }
 
     /* —— Error console —— */
     .error-console {
@@ -321,7 +420,7 @@
       flex: 1;
       overflow: auto;
       padding: 8px 16px 14px;
-      font-family: Menlo, monospace;
+      font-family: var(--font-code);
       font-size: 12px;
       line-height: 1.6;
       white-space: pre-wrap;
@@ -458,6 +557,73 @@
     }
     .card-tac h3 { color: #f6ad55; }
     .card-tac:hover { box-shadow: 0 8px 32px rgba(221, 107, 32, 0.28); }
+    .card-neon-summary {
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+    }
+    .card-pass1 .card-neon-summary {
+      color: #7dd3fc;
+      background: rgba(49, 130, 206, 0.12);
+      border: 1px solid rgba(99, 179, 237, 0.35);
+      box-shadow: 0 0 16px rgba(49, 130, 206, 0.2);
+    }
+    .card-pass2 .card-neon-summary {
+      color: #6ee7b7;
+      background: rgba(56, 161, 105, 0.12);
+      border: 1px solid rgba(104, 211, 145, 0.35);
+      box-shadow: 0 0 16px rgba(56, 161, 105, 0.2);
+    }
+    .card-tac .card-neon-summary {
+      color: #fdba74;
+      background: rgba(221, 107, 32, 0.12);
+      border: 1px solid rgba(246, 173, 85, 0.35);
+      box-shadow: 0 0 16px rgba(221, 107, 32, 0.2);
+    }
+    .ui-guide {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #2d3748;
+    }
+    .ui-guide h4 {
+      font-size: 13px;
+      color: #e2e8f0;
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .ui-guide-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .ui-guide-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+    .ui-guide-item strong {
+      display: block;
+      font-size: 11px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .ui-guide-item span {
+      font-size: 11.5px;
+      line-height: 1.55;
+      color: #94a3b8;
+    }
+    .ui-guide-item.g-tokens strong { color: #93c5fd; text-shadow: 0 0 12px rgba(147, 197, 253, 0.4); }
+    .ui-guide-item.g-mapping strong { color: #c4b5fd; text-shadow: 0 0 12px rgba(196, 181, 253, 0.4); }
+    .ui-guide-item.g-symbols strong { color: #6ee7b7; text-shadow: 0 0 12px rgba(110, 231, 183, 0.4); }
+    .ui-guide-item.g-ast strong { color: #7dd3fc; text-shadow: 0 0 12px rgba(125, 211, 252, 0.4); }
+    .ui-guide-item.g-tac strong { color: #4ade80; text-shadow: 0 0 12px rgba(74, 222, 128, 0.4); }
+    .ui-guide-item.g-error strong { color: #fb7185; text-shadow: 0 0 12px rgba(251, 113, 133, 0.4); }
     .modal-footer-note {
       margin-top: 18px;
       padding-top: 14px;
@@ -509,41 +675,55 @@
 
       <div id="tab-tokens" class="tab-content active">
         <div class="tab-hint">Pass 1 — Lexer token çıktısı (satır, tip, değer)</div>
-        <table>
-          <thead><tr><th>Line</th><th>Token Type</th><th>Value</th></tr></thead>
-          <tbody id="token-body"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Line</th><th>Token Type</th><th>Value</th></tr></thead>
+            <tbody id="token-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <div id="tab-mapping" class="tab-content">
         <div class="tab-hint">PDF §3.4 — Kaynak satırı → üretilen token eşlemesi (line-by-line)</div>
-        <table>
-          <thead><tr><th class="col-line">#</th><th>Source Line</th><th>Generated Tokens</th></tr></thead>
-          <tbody id="mapping-body"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th class="col-line">#</th><th>Source Line</th><th>Generated Tokens</th></tr></thead>
+            <tbody id="mapping-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <div id="tab-symbols" class="tab-content">
         <div class="section-label">Pass 1 — Lexer (bellek iskeleti, tip ?)</div>
-        <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Memory</th><th>Scope</th></tr></thead>
-          <tbody id="symbol-pass1-body"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Type</th><th>Memory</th><th>Scope</th></tr></thead>
+            <tbody id="symbol-pass1-body"></tbody>
+          </table>
+        </div>
         <div class="section-label">Pass 2 — Parser (tam semantik tablo)</div>
-        <table>
-          <thead><tr><th>Name</th><th>Type</th><th>Memory</th><th>Scope</th></tr></thead>
-          <tbody id="symbol-body"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Type</th><th>Memory</th><th>Scope</th></tr></thead>
+            <tbody id="symbol-body"></tbody>
+          </table>
+        </div>
       </div>
 
       <div id="tab-ast" class="tab-content">
         <div class="tab-hint">Pass 2 — Abstract Syntax Tree (JSON)</div>
-        <pre id="ast-view" class="code-view">Run Analyze Code to generate AST.</pre>
+        <div class="terminal-panel">
+          <div class="terminal-header">AST Output · JSON</div>
+          <pre id="ast-view" class="code-view">Run Analyze Code to generate AST.</pre>
+        </div>
       </div>
 
       <div id="tab-tac" class="tab-content">
         <div class="tab-hint">Intermediate Representation — Three-Address Code</div>
-        <pre id="tac-view" class="code-view tac-view">Run Analyze Code to generate TAC.</pre>
+        <div class="terminal-panel">
+          <div class="terminal-header">TAC Output · Intermediate Code</div>
+          <pre id="tac-view" class="code-view tac-view">Run Analyze Code to generate TAC.</pre>
+        </div>
       </div>
     </section>
   </main>
@@ -574,6 +754,7 @@
               <strong>Sembol Tablosuna</strong> kaydeder ve her birine ardışık
               <strong>32-bit sahte bellek adresleri</strong> (<code>0x1000</code>, <code>0x1004</code>…) atar.
             </p>
+            <div class="card-neon-summary">⚡ Kısaca: Kodu kelimelere (token) ayırır — Pass 1 çıktısı Token Stream sekmesindedir.</div>
           </article>
           <article class="arch-card card-pass2">
             <h3>🟩 PASS 2: Gramer &amp; Anlam Kontrolü</h3>
@@ -585,6 +766,7 @@
               <strong>Tanımlanmamış değişkenleri (Undeclared)</strong> ve
               <strong>Tip Uyuşmazlıklarını (Type Mismatch)</strong> satır numarasıyla yakalar.
             </p>
+            <div class="card-neon-summary">⚡ Kısaca: Gramer + anlam kontrolü yapar, AST üretir — hataları Error Log'a yazar.</div>
           </article>
           <article class="arch-card card-tac">
             <h3>🟧 ARA KOD: Üç Adresli Kod (TAC)</h3>
@@ -594,8 +776,40 @@
               Karmaşık denklemleri işlemcinin tek döngüde çalıştırabileceği, en fazla üç adres içeren
               (<code>t0 = y * 2</code> gibi) saf <strong>donanım dostu makine öncesi</strong> koda dönüştürür.
             </p>
+            <div class="card-neon-summary">⚡ Kısaca: AST'yi işlemci dostu satır satır talimatlara çevirir — TAC sekmesinde görünür.</div>
           </article>
         </div>
+
+        <div class="ui-guide">
+          <h4>📋 Arayüz Sekmeleri — Ne İşe Yarar?</h4>
+          <div class="ui-guide-grid">
+            <div class="ui-guide-item g-tokens">
+              <strong>Token Stream</strong>
+              <span>Lexer çıktısı: her token'ın satır no, tipi ve değeri. Kodun kelime kelime listesi.</span>
+            </div>
+            <div class="ui-guide-item g-mapping">
+              <strong>Line Mapping</strong>
+              <span>Her kaynak satırının yanında o satırdan üretilen token'lar. Satır satır eşleme (PDF §3.4).</span>
+            </div>
+            <div class="ui-guide-item g-symbols">
+              <strong>Symbol Table</strong>
+              <span>Değişkenlerin adı, tipi, bellek adresi (0x1000…) ve kapsamı. Pass 1 + Pass 2 tabloları.</span>
+            </div>
+            <div class="ui-guide-item g-ast">
+              <strong>AST (JSON)</strong>
+              <span>Programın ağaç yapısı: if, while, atama ve ifadelerin hiyerarşik gösterimi.</span>
+            </div>
+            <div class="ui-guide-item g-tac">
+              <strong>TAC</strong>
+              <span>Üç adresli ara kod: t0 = x * 2 gibi işlemci mantığına yakın satırlar.</span>
+            </div>
+            <div class="ui-guide-item g-error">
+              <strong>Error Log</strong>
+              <span>Lexical, Syntax ve Semantic hatalar. Yeşil = başarılı, kırmızı = hata var.</span>
+            </div>
+          </div>
+        </div>
+
         <p class="modal-footer-note">
           Analyze Code ile bu üç aşamayı canlı olarak Token Stream, Line Mapping, Symbol Table ve TAC sekmelerinde izleyebilirsiniz.
         </p>
