@@ -38,6 +38,8 @@
       background: var(--bg-deep);
       color: var(--text);
       height: 100vh;
+      width: 100vw;
+      min-width: 100vw;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -200,18 +202,30 @@
     /* —— Main layout —— */
     main {
       flex: 1;
+      width: 100%;
+      min-width: 0;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(520px, 1.4fr) 12px minmax(380px, 1.4fr);
       min-height: 0;
+      gap: 12px;
     }
     .panel {
       display: flex;
       flex-direction: column;
-      border-right: 1px solid var(--border);
       min-height: 0;
+      width: 100%;
+      max-width: 100%;
       background: var(--bg-panel);
     }
-    .panel:last-child { border-right: none; }
+    .panel.left-panel {
+      border-radius: 16px 16px 0 0;
+    }
+    .panel.right-panel {
+      border-radius: 16px;
+    }
+    .panel:first-child {
+      border-right: none;
+    }
     .panel-header {
       display: flex;
       align-items: center;
@@ -252,6 +266,7 @@
     .editor-wrap {
       flex: 1;
       display: flex;
+      position: relative;
       min-height: 0;
       background: var(--bg-editor);
       margin: 10px 12px 12px;
@@ -260,6 +275,89 @@
       box-shadow: inset 0 2px 24px rgba(0, 0, 0, 0.35);
       overflow: hidden;
     }
+    .sample-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 12px 12px 0;
+      margin: 0 12px 10px;
+    }
+    .sample-panel.hidden {
+      display: none;
+    }
+    .sample-card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 14px;
+      padding: 14px;
+      min-height: 170px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #7dd3fc;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .card-code {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 10px;
+      padding: 10px;
+      margin: 0;
+      font-family: var(--font-code);
+      font-size: 12px;
+      line-height: 1.5;
+      color: #cbd5e1;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      flex: 1;
+    }
+    .sample-card .sample-load {
+      align-self: flex-start;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease;
+    }
+    .sample-card .sample-load:hover {
+      background: #3b82f6;
+      transform: translateY(-1px);
+    }
+    #source-code {
+      flex: 1;
+      position: relative;
+      z-index: 1;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font-code);
+      font-size: 14px;
+      line-height: 1.75;
+      padding: 16px 18px;
+      padding-left: 18px;
+      resize: none;
+      border: none;
+      outline: none;
+      tab-size: 4;
+      caret-color: var(--accent);
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .code-keyword { color: #8b5cf6; }
+    .code-string { color: #f59e0b; }
+    .code-number { color: #36d399; }
+    .code-comment { color: #64748b; font-style: italic; }
+    .code-operator { color: #a5b4fc; }
+    .code-punctuation { color: #94a3b8; }
+    .code-identifier { color: #cbd5e1; }
     .line-gutter {
       padding: 16px 10px 16px 14px;
       font-family: var(--font-code);
@@ -272,21 +370,6 @@
       overflow: hidden;
       background: rgba(0, 0, 0, 0.2);
       min-width: 44px;
-    }
-    #source-code {
-      flex: 1;
-      border: none;
-      background: transparent;
-      color: #e2e8f0;
-      font-family: var(--font-code);
-      font-size: 14px;
-      line-height: 1.75;
-      padding: 16px 18px;
-      resize: none;
-      outline: none;
-      tab-size: 4;
-      caret-color: var(--accent);
-      overflow: auto;
     }
     #source-code::selection {
       background: rgba(108, 158, 255, 0.25);
@@ -321,6 +404,7 @@
     }
     .tab-content {
       flex: 1;
+      width: 100%;
       overflow: auto;
       display: none;
       min-height: 0;
@@ -416,12 +500,13 @@
       letter-spacing: 0.08em;
     }
     .terminal-panel {
-      margin: 12px 14px 16px;
+      margin: 12px 10px 16px;
       background: var(--terminal-bg);
       border: 1px solid rgba(148, 163, 184, 0.15);
       border-radius: 8px;
       overflow: hidden;
       box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.4), 0 4px 24px rgba(0, 0, 0, 0.25);
+      width: calc(100% - 20px);
     }
     .terminal-panel, .tab-content, #error-log, pre.code-view, #source-code {
       scrollbar-width: thin;
@@ -459,13 +544,65 @@
       max-height: calc(100vh - 320px);
       color: var(--text);
     }
-    #ast-view {
-      color: var(--ast);
-      text-shadow: 0 0 20px rgba(125, 211, 252, 0.15);
+    #ast-tree {
+      color: var(--text);
     }
     pre.tac-view, #tac-view {
       color: var(--tac);
       text-shadow: 0 0 20px rgba(74, 222, 128, 0.12);
+    }
+    .ast-tree {
+      padding: 14px;
+      font-family: var(--font-code);
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text);
+      max-height: 42vh;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .ast-node {
+      margin: 6px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: rgba(15, 23, 42, 0.95);
+    }
+    .ast-node-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+    .ast-field {
+      margin-left: 16px;
+      padding-left: 12px;
+      border-left: 2px solid rgba(148, 163, 184, 0.12);
+    }
+    .tac-list {
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      max-height: 42vh;
+      overflow: auto;
+    }
+    .tac-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      font-family: var(--font-code);
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+    .tac-line span {
+      color: #a5b4fc;
     }
 
     /* —— Error console —— */
@@ -480,6 +617,18 @@
     .panel-resizer:hover {
       background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.18), rgba(255,255,255,0.04));
       box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+    .column-resizer {
+      width: 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+      cursor: col-resize;
+      border-radius: 8px;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: inset 1px 0 6px rgba(0, 0, 0, 0.25);
+    }
+    .column-resizer:hover {
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.18), rgba(255,255,255,0.04));
+      box-shadow: inset 2px 0 10px rgba(0, 0, 0, 0.35);
     }
     .error-console {
       flex-shrink: 0;
@@ -756,10 +905,40 @@
   </nav>
 
   <main>
-    <section class="panel">
+    <section class="panel left-panel">
       <div class="panel-header">Source Editor</div>
       <div class="toolbar">
         <button type="button" id="load-sample-btn">📄 PDF Örnek Program</button>
+        <button type="button" id="show-samples-btn">📚 Örnek Kodlar</button>
+        <button type="button" id="download-btn">⬇️ İndir .ml</button>
+        <button type="button" id="upload-btn">⬆️ Yükle .ml</button>
+        <input type="file" id="file-input" accept=".ml" hidden />
+      </div>
+      <div class="sample-panel hidden" id="sample-panel">
+        <div class="sample-card" data-sample="print">
+          <div class="card-title">Print Örneği</div>
+          <pre class="card-code">print("Merhaba MiniLang!");</pre>
+          <button type="button" class="sample-load">Bu kodu yükle</button>
+        </div>
+        <div class="sample-card" data-sample="ifelse">
+          <div class="card-title">If / Else Örneği</div>
+          <pre class="card-code">int x = 5;
+if (x > 3) {
+    print("x büyüktür 3");
+} else {
+    print("x küçük veya eşittir 3");
+}</pre>
+          <button type="button" class="sample-load">Bu kodu yükle</button>
+        </div>
+        <div class="sample-card" data-sample="while">
+          <div class="card-title">While Döngüsü Örneği</div>
+          <pre class="card-code">int i = 0;
+while (i < 4) {
+    print(i);
+    i = i + 1;
+}</pre>
+          <button type="button" class="sample-load">Bu kodu yükle</button>
+        </div>
       </div>
       <div class="editor-wrap">
         <div class="line-gutter" id="line-gutter">1</div>
@@ -767,7 +946,9 @@
       </div>
     </section>
 
-    <section class="panel">
+    <div class="column-resizer" id="column-resizer" title="Sola/sağa sürükleyerek panel genişliğini ayarlayın"></div>
+
+    <section class="panel right-panel">
       <div class="tabs">
         <button class="tab active" data-tab="tokens">Token Stream</button>
         <button class="tab" data-tab="mapping">Line Mapping</button>
@@ -815,17 +996,17 @@
 
       <div id="tab-ast" class="tab-content">
         <div class="tab-hint">Pass 2 — Abstract Syntax Tree (JSON)</div>
-        <div class="terminal-panel">
-          <div class="terminal-header">AST Output · JSON</div>
-          <pre id="ast-view" class="code-view">Run Analyze Code to generate AST.</pre>
+        <div class="terminal-panel" id="ast-tree-panel">
+          <div class="terminal-header">AST Output · JSON Viewer</div>
+          <pre id="ast-view" class="code-view">Run Analyze Code to generate AST JSON.</pre>
         </div>
       </div>
 
       <div id="tab-tac" class="tab-content">
         <div class="tab-hint">Intermediate Representation — Three-Address Code</div>
-        <div class="terminal-panel">
-          <div class="terminal-header">TAC Output · Intermediate Code</div>
-          <pre id="tac-view" class="code-view tac-view">Run Analyze Code to generate TAC.</pre>
+        <div class="terminal-panel" id="tac-panel">
+          <div class="terminal-header">TAC Output · Instruction List</div>
+          <div id="tac-view" class="tac-list">Run Analyze Code to generate TAC.</div>
         </div>
       </div>
     </section>
@@ -944,7 +1125,11 @@ while (x < 20) {
     editor.value = DEFAULT_SOURCE;
     updateGutter();
 
-    editor.addEventListener("input", updateGutter);
+    const fileInput = document.getElementById("file-input");
+
+    editor.addEventListener("input", () => {
+      updateGutter();
+    });
     editor.addEventListener("scroll", () => {
       gutter.scrollTop = editor.scrollTop;
     });
@@ -952,6 +1137,27 @@ while (x < 20) {
     function updateGutter() {
       const n = editor.value.split("\n").length;
       gutter.textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n");
+    }
+
+    function downloadSource() {
+      const blob = new Blob([editor.value], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "program.ml";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function uploadSource(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        editor.value = reader.result;
+        updateGutter();
+      };
+      reader.readAsText(file);
     }
 
     document.getElementById("load-sample-btn").addEventListener("click", async () => {
@@ -963,6 +1169,28 @@ while (x < 20) {
       } catch (err) {
         alert("Örnek yüklenemedi: " + err.message);
       }
+    });
+
+    document.getElementById("download-btn").addEventListener("click", downloadSource);
+    document.getElementById("upload-btn").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", (event) => {
+      if (event.target.files.length) {
+        uploadSource(event.target.files[0]);
+      }
+    });
+
+    document.getElementById("show-samples-btn").addEventListener("click", () => {
+      document.getElementById("sample-panel").classList.toggle("hidden");
+    });
+
+    document.querySelectorAll(".sample-load").forEach(btn => {
+      btn.addEventListener("click", (event) => {
+        const card = event.target.closest(".sample-card");
+        const code = card.querySelector(".card-code").textContent;
+        editor.value = code;
+        updateGutter();
+        document.getElementById("sample-panel").classList.add("hidden");
+      });
     });
 
     document.querySelectorAll(".tab").forEach(btn => {
@@ -996,9 +1224,14 @@ while (x < 20) {
     });
 
     const resizer = document.getElementById("panel-resizer");
+    const columnResizer = document.getElementById("column-resizer");
+    const splitMain = document.querySelector("main");
     let isResizing = false;
     let resizeStartY = 0;
     let resizeStartHeight = 0;
+    let isColumnResizing = false;
+    let resizeStartX = 0;
+    let startLeftWidth = 0;
 
     resizer.addEventListener("mousedown", (e) => {
       e.preventDefault();
@@ -1009,26 +1242,44 @@ while (x < 20) {
       document.body.style.userSelect = "none";
     });
 
+    columnResizer.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      isColumnResizing = true;
+      resizeStartX = e.clientX;
+      startLeftWidth = splitMain.querySelector(".left-panel").getBoundingClientRect().width;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+
     document.addEventListener("mousemove", (e) => {
-      if (!isResizing) return;
-      const delta = resizeStartY - e.clientY;
-      const nextHeight = Math.min(
-        Math.max(resizeStartHeight + delta, 120),
-        Math.round(window.innerHeight * 0.6)
-      );
-      errorConsole.style.height = nextHeight + "px";
+      if (isResizing) {
+        const delta = resizeStartY - e.clientY;
+        const nextHeight = Math.min(
+          Math.max(resizeStartHeight + delta, 120),
+          Math.round(window.innerHeight * 0.6)
+        );
+        errorConsole.style.height = nextHeight + "px";
+      }
+      if (isColumnResizing) {
+        const containerWidth = splitMain.getBoundingClientRect().width;
+        const delta = e.clientX - resizeStartX;
+        const nextLeft = Math.max(320, Math.min(containerWidth - 260, startLeftWidth + delta));
+        splitMain.style.gridTemplateColumns = `${nextLeft}px 12px minmax(320px, 0.6fr)`;
+      }
     });
 
     document.addEventListener("mouseup", () => {
-      if (!isResizing) return;
+      if (!isResizing && !isColumnResizing) return;
       isResizing = false;
+      isColumnResizing = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     });
 
     document.addEventListener("mouseleave", () => {
-      if (!isResizing) return;
+      if (!isResizing && !isColumnResizing) return;
       isResizing = false;
+      isColumnResizing = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     });
@@ -1097,6 +1348,22 @@ while (x < 20) {
       });
     }
 
+    function renderTacList(tac) {
+      const view = document.getElementById("tac-view");
+      view.innerHTML = "";
+      if (!tac || !tac.length) {
+        view.textContent = "(No TAC generated)";
+        return;
+      }
+
+      tac.forEach((instr, index) => {
+        const line = document.createElement("div");
+        line.className = "tac-line";
+        line.innerHTML = '<span>#' + (index + 1) + '</span><span>' + escapeHtml(instr) + '</span>';
+        view.appendChild(line);
+      });
+    }
+
     function escapeHtml(s) {
       return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     }
@@ -1147,9 +1414,8 @@ while (x < 20) {
           (data.symbols || []).map(s => [s.name, s.type, s.memory_location, s.scope]), 4);
 
         document.getElementById("ast-view").textContent =
-          data.ast_json || "(No AST — fix errors in console)";
-        document.getElementById("tac-view").textContent =
-          data.tac && data.tac.length ? data.tac.join("\n") : "(No TAC generated)";
+          data.ast_json || "(No AST JSON generated)";
+        renderTacList(data.tac);
 
         setErrorLog(data.errors || []);
         setStatus(
