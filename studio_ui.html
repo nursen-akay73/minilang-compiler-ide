@@ -30,6 +30,9 @@
       --font-code: "Fira Code", "SF Mono", Monaco, "Courier New", monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg-deep);
@@ -38,6 +41,45 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(148, 163, 184, 0.08);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(108, 158, 255, 0.35);
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(108, 158, 255, 0.55);
+    }
+    .scrollable,
+    .tab-content,
+    #source-code,
+    pre.code-view,
+    #error-log,
+    .terminal-panel,
+    .editor-wrap {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(108, 158, 255, 0.35) rgba(148, 163, 184, 0.08);
+    }
+
+    .tab-content,
+    #source-code,
+    pre.code-view,
+    #error-log {
+      overflow: auto;
+    }
+
+    .scrollable {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(108, 158, 255, 0.35) rgba(148, 163, 184, 0.08);
     }
 
     /* —— Navbar —— */
@@ -101,6 +143,44 @@
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 2px 10px rgba(49, 130, 206, 0.35);
       transition: transform 0.2s ease, box-shadow 0.25s ease, background 0.2s ease;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 90px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--muted);
+      border: 1px solid transparent;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    }
+    .status-idle { background: rgba(148, 163, 184, 0.08); color: var(--muted); }
+    .status-loading { background: rgba(96, 165, 250, 0.16); color: #a5b4fc; border-color: rgba(96, 165, 250, 0.25); }
+    .status-success { background: rgba(34, 197, 94, 0.16); color: #86efac; border-color: rgba(34, 197, 94, 0.25); }
+    .status-error { background: rgba(248, 113, 113, 0.16); color: #fecaca; border-color: rgba(248, 113, 113, 0.25); }
+    .btn-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,0.5);
+      border-top-color: transparent;
+      border-radius: 50%;
+      margin-left: 8px;
+      opacity: 0;
+      transform: translateY(1px);
+      transition: opacity 0.2s ease;
+    }
+    .loading .btn-spinner {
+      opacity: 1;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
     .btn-info:hover {
       background: #4299e1;
@@ -206,6 +286,7 @@
       outline: none;
       tab-size: 4;
       caret-color: var(--accent);
+      overflow: auto;
     }
     #source-code::selection {
       background: rgba(108, 158, 255, 0.25);
@@ -245,6 +326,7 @@
       min-height: 0;
       background: var(--bg-panel);
       opacity: 0;
+      scroll-behavior: smooth;
     }
     .tab-content.active {
       display: block;
@@ -341,6 +423,10 @@
       overflow: hidden;
       box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.4), 0 4px 24px rgba(0, 0, 0, 0.25);
     }
+    .terminal-panel, .tab-content, #error-log, pre.code-view, #source-code {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(108, 158, 255, 0.35) rgba(148, 163, 184, 0.08);
+    }
     .terminal-header {
       display: flex;
       align-items: center;
@@ -383,14 +469,30 @@
     }
 
     /* —— Error console —— */
+    .panel-resizer {
+      height: 8px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.12), rgba(255,255,255,0.02));
+      cursor: row-resize;
+      flex-shrink: 0;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.35);
+    }
+    .panel-resizer:hover {
+      background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.18), rgba(255,255,255,0.04));
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
     .error-console {
       flex-shrink: 0;
-      border-top: 2px solid var(--border);
-      min-height: 130px;
-      max-height: 200px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      height: 180px;
+      min-height: 120px;
+      max-height: 60vh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      transition: background 0.2s, border-color 0.2s;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      background: rgba(15, 23, 42, 0.95);
+      box-shadow: inset 0 8px 28px rgba(0, 0, 0, 0.45);
     }
     .error-console.state-ok {
       background: var(--success-bg);
@@ -648,7 +750,8 @@
     <div class="nav-actions">
       <span class="pipeline-badge">Pass 1: Lexer → Pass 2: Parser → TAC</span>
       <button type="button" class="btn-info" id="info-btn" title="Architecture Blueprint">i</button>
-      <button type="button" id="analyze-btn">▶ Analyze Code</button>
+      <button type="button" id="analyze-btn">▶ Analyze Code<span class="btn-spinner" id="btn-spinner"></span></button>
+      <span class="status-badge status-idle" id="status-badge">Ready</span>
     </div>
   </nav>
 
@@ -728,6 +831,7 @@
     </section>
   </main>
 
+  <div class="panel-resizer" id="panel-resizer" title="Drag to resize error console"></div>
   <div class="error-console state-idle" id="error-console">
     <div class="error-header" id="error-header">● Error Log — Lexical · Syntax · Semantic</div>
     <div id="error-log">Ready. Press Analyze Code to compile.</div>
@@ -871,6 +975,9 @@ while (x < 20) {
     });
 
     const modal = document.getElementById("modal-overlay");
+    const statusBadge = document.getElementById("status-badge");
+    const analyzeButton = document.getElementById("analyze-btn");
+
     function openModal() {
       modal.classList.add("open");
       document.body.style.overflow = "hidden";
@@ -887,6 +994,49 @@ while (x < 20) {
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && modal.classList.contains("open")) closeModal();
     });
+
+    const resizer = document.getElementById("panel-resizer");
+    let isResizing = false;
+    let resizeStartY = 0;
+    let resizeStartHeight = 0;
+
+    resizer.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      isResizing = true;
+      resizeStartY = e.clientY;
+      resizeStartHeight = errorConsole.getBoundingClientRect().height;
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isResizing) return;
+      const delta = resizeStartY - e.clientY;
+      const nextHeight = Math.min(
+        Math.max(resizeStartHeight + delta, 120),
+        Math.round(window.innerHeight * 0.6)
+      );
+      errorConsole.style.height = nextHeight + "px";
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (!isResizing) return;
+      isResizing = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    });
+
+    document.addEventListener("mouseleave", () => {
+      if (!isResizing) return;
+      isResizing = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    });
+
+    function setStatus(state, text) {
+      statusBadge.className = "status-badge " + state;
+      statusBadge.textContent = text;
+    }
 
     function fillTable(tbodyId, rows, cols) {
       const tbody = document.getElementById(tbodyId);
@@ -974,7 +1124,9 @@ while (x < 20) {
     async function analyze() {
       const btn = document.getElementById("analyze-btn");
       btn.disabled = true;
-      btn.textContent = "Analyzing…";
+      btn.classList.add("loading");
+      btn.innerHTML = 'Analyzing… <span class="btn-spinner" id="btn-spinner"></span>';
+      setStatus("status-loading", "Analyzing…");
       errorConsole.classList.remove("state-ok", "state-err");
       errorConsole.classList.add("state-idle");
       errorLog.textContent = "Compiling…";
@@ -1000,6 +1152,10 @@ while (x < 20) {
           data.tac && data.tac.length ? data.tac.join("\n") : "(No TAC generated)";
 
         setErrorLog(data.errors || []);
+        setStatus(
+          (!data.errors || !data.errors.length) ? "status-success" : "status-error",
+          (!data.errors || !data.errors.length) ? "Success" : "Errors"
+        );
 
         if (!data.errors || !data.errors.length) {
           document.querySelector('[data-tab="mapping"]').click();
@@ -1007,9 +1163,11 @@ while (x < 20) {
       } catch (err) {
         errorConsole.classList.add("state-err");
         errorLog.innerHTML = '<span class="err-line">✖ [System] — ' + escapeHtml(err.message) + '</span>';
+        setStatus("status-error", "Failed");
       } finally {
         btn.disabled = false;
-        btn.textContent = "▶ Analyze Code";
+        btn.classList.remove("loading");
+        btn.innerHTML = '▶ Analyze Code<span class="btn-spinner" id="btn-spinner"></span>';
       }
     }
 
