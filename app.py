@@ -43,13 +43,13 @@ class TACGenerator:
         return f"t{self._temp_counter}"
 
     def generate(self, ast: dict | None) -> list[str]:
-        self.instructions = []
-        self._temp_counter = 0
-        if ast is None:
-            return []
-        for stmt in ast.get("statements", []):
-            self._gen_statement(stmt)
-        return self.instructions
+      self.instructions = []
+      self._temp_counter = 0
+      if ast is None:
+        return []
+      for stmt in ast.get("statements", []):
+        self._gen_statement(stmt)
+      return self.instructions
 
     def _emit(self, instruction: str) -> None:
         self.instructions.append(instruction)

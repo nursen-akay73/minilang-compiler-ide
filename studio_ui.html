@@ -32,14 +32,16 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html {
       scroll-behavior: smooth;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
     }
     body {
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg-deep);
       color: var(--text);
-      height: 100vh;
-      width: 100vw;
-      min-width: 100vw;
+      height: 100%;
+      width: 100%;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -205,17 +207,21 @@
       width: 100%;
       min-width: 0;
       display: grid;
-      grid-template-columns: minmax(520px, 1.4fr) 12px minmax(380px, 1.4fr);
+      grid-template-columns: minmax(0, 1fr) 8px minmax(0, 1fr);
       min-height: 0;
-      gap: 12px;
+      gap: 0;
+      padding: 0 10px;
+      box-sizing: border-box;
     }
     .panel {
       display: flex;
       flex-direction: column;
       min-height: 0;
+      min-width: 0;
       width: 100%;
       max-width: 100%;
       background: var(--bg-panel);
+      overflow: hidden;
     }
     .panel.left-panel {
       border-radius: 16px 16px 0 0;
@@ -413,8 +419,15 @@
       scroll-behavior: smooth;
     }
     .tab-content.active {
-      display: block;
+      display: flex;
+      flex-direction: column;
       animation: tabFadeIn 0.28s ease forwards;
+    }
+    .tab-content .table-wrap,
+    .tab-content .terminal-panel,
+    .tab-content .tac-list {
+      flex: 1;
+      min-height: 0;
     }
     @keyframes tabFadeIn {
       from { opacity: 0; transform: translateY(6px); }
@@ -506,7 +519,8 @@
       border-radius: 8px;
       overflow: hidden;
       box-shadow: inset 0 2px 20px rgba(0, 0, 0, 0.4), 0 4px 24px rgba(0, 0, 0, 0.25);
-      width: calc(100% - 20px);
+      width: auto;
+      max-width: 100%;
     }
     .terminal-panel, .tab-content, #error-log, pre.code-view, #source-code {
       scrollbar-width: thin;
@@ -619,7 +633,8 @@
       box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
     }
     .column-resizer {
-      width: 12px;
+      width: 8px;
+      flex-shrink: 0;
       background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.12), rgba(255,255,255,0.02));
       cursor: col-resize;
       border-radius: 8px;
@@ -884,7 +899,11 @@
       text-align: center;
     }
     @media (max-width: 900px) {
-      main { grid-template-columns: 1fr; }
+      main {
+        grid-template-columns: 1fr;
+        padding: 0 8px;
+      }
+      .column-resizer { display: none; }
     }
   </style>
 </head>
@@ -1226,6 +1245,7 @@ while (x < 20) {
     const resizer = document.getElementById("panel-resizer");
     const columnResizer = document.getElementById("column-resizer");
     const splitMain = document.querySelector("main");
+    splitMain.style.gridTemplateColumns = "";
     let isResizing = false;
     let resizeStartY = 0;
     let resizeStartHeight = 0;
@@ -1263,8 +1283,12 @@ while (x < 20) {
       if (isColumnResizing) {
         const containerWidth = splitMain.getBoundingClientRect().width;
         const delta = e.clientX - resizeStartX;
-        const nextLeft = Math.max(320, Math.min(containerWidth - 260, startLeftWidth + delta));
-        splitMain.style.gridTemplateColumns = `${nextLeft}px 12px minmax(320px, 0.6fr)`;
+        const minRight = 280;
+        const nextLeft = Math.max(
+          280,
+          Math.min(containerWidth - minRight - 16, startLeftWidth + delta)
+        );
+        splitMain.style.gridTemplateColumns = `${nextLeft}px 8px minmax(0, 1fr)`;
       }
     });
 
